@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Ask Question | Electrical Q&A{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4 text-primary">Ask Electrical Machine Questions</h1>
+
+  <!-- Question Form -->
+  <form id="questionForm" method="post" novalidate class="mb-4">
+    {% csrf_token %}
+    <div class="mb-3">
+      <textarea 
+        name="question" 
+        rows="4" 
+        class="form-control shadow-sm" 
+        placeholder="Enter your electrical machine question here..."
+        autofocus></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">Ask</button>
+  </form>
+
+  <!-- Answer Section -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">Answer</h5>
+    </div>
+    <div id="answer" class="card-body text-dark">
+      <em>Your answer will appear here...</em>
+    </div>
+  </div>
+
+  <!-- History Section -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-secondary text-white">
+      <h5 class="mb-0">Your Question History</h5>
+    </div>
+    <div id="historyBox" class="card-body" style="max-height: 300px; overflow-y: auto;">
+      {% for q in history %}
+        <div class="border-bottom pb-2 mb-2">
+          <strong>Q:</strong> {{ q.question_text }} <br>
+          <strong>A:</strong> {{ q.answer.answer_text|default:"(No answer yet)" }}
+        </div>
+      {% empty %}
+        <p class="text-muted">No history yet. Ask your first question!</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, m => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]
+  ));
+}
+
+document.getElementById("questionForm").onsubmit = async function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+
+  // Show loading text
+  document.getElementById("answer").innerHTML = "<em>Loading answer...</em>";
+
+  try {
+    const response = await fetch("", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error("Server error");
+
+    const data = await response.json();
+
+    // Display answer safely
+    document.getElementById("answer").textContent = data.answer;
+
+    // Append to history
+    const historyBox = document.getElementById("historyBox");
+    const newEntry = document.createElement("div");
+    newEntry.classList.add("border-bottom", "pb-2", "mb-2");
+    newEntry.innerHTML = `<strong>Q:</strong> ${escapeHTML(formData.get("question"))}<br>
+                          <strong>A:</strong> ${escapeHTML(data.answer)}`;
+    historyBox.prepend(newEntry);
+
+    // Clear input
+    this.reset();
+
+  } catch (error) {
+    document.getElementById("answer").innerHTML =
+      "<span class='text-danger'>⚠️ Failed to fetch answer. Please try again.</span>";
+  }
+};
+</script>
+{% endblock %}
